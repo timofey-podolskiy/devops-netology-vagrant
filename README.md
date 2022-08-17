@@ -286,3 +286,151 @@
     Ss - S ожидающий процесс s лидер сессии
     R+ - R выполняющийся процесс + в foreground
    ```
+   
+## ОС Лекция 2
+
+1. На лекции мы познакомились с [node_exporter](https://github.com/prometheus/node_exporter/releases). В демонстрации его исполняемый файл запускался в background. Этого достаточно для демо, но не для настоящей production-системы, где процессы должны находиться под внешним управлением. Используя знания из лекции по systemd, создайте самостоятельно простой [unit-файл](https://www.freedesktop.org/software/systemd/man/systemd.service.html) для node_exporter:
+
+    * поместите его в автозагрузку,
+    * предусмотрите возможность добавления опций к запускаемому процессу через внешний файл (посмотрите, например, на `systemctl cat cron`),
+    * удостоверьтесь, что с помощью systemctl процесс корректно стартует, завершается, а после перезагрузки автоматически поднимается.
+    
+    ```bash
+    установил node_exporter, запустил, пробросил 9100 порт на виртуалку, открыл в браузере http://127.0.0.1:9100/metrics, получил такой вывод
+    
+   # HELP go_gc_duration_seconds A summary of the pause duration of garbage collection cycles.
+    # TYPE go_gc_duration_seconds summary
+    go_gc_duration_seconds{quantile="0"} 0
+    go_gc_duration_seconds{quantile="0.25"} 0
+    go_gc_duration_seconds{quantile="0.5"} 0
+    go_gc_duration_seconds{quantile="0.75"} 0
+    go_gc_duration_seconds{quantile="1"} 0
+    go_gc_duration_seconds_sum 0
+    go_gc_duration_seconds_count 0
+    # HELP go_goroutines Number of goroutines that currently exist.
+    # TYPE go_goroutines gauge
+    go_goroutines 9
+    # HELP go_info Information about the Go environment.
+    # TYPE go_info gauge
+    go_info{version="go1.17.3"} 1
+    # HELP go_memstats_alloc_bytes Number of bytes allocated and still in use.
+    # TYPE go_memstats_alloc_bytes gauge
+    go_memstats_alloc_bytes 1.399848e+06
+    # HELP go_memstats_alloc_bytes_total Total number of bytes allocated, even if freed.
+    # TYPE go_memstats_alloc_bytes_total counter
+    go_memstats_alloc_bytes_total 1.399848e+06
+    # HELP go_memstats_buck_hash_sys_bytes Number of bytes used by the profiling bucket hash table.
+    # TYPE go_memstats_buck_hash_sys_bytes gauge
+    go_memstats_buck_hash_sys_bytes 1.445967e+06
+    # HELP go_memstats_frees_total Total number of frees.
+    # TYPE go_memstats_frees_total counter
+    go_memstats_frees_total 757
+    # HELP go_memstats_gc_cpu_fraction The fraction of this program's available CPU time used by the GC since the program started.
+    # TYPE go_memstats_gc_cpu_fraction gauge
+    go_memstats_gc_cpu_fraction 0
+    # HELP go_memstats_gc_sys_bytes Number of bytes used for garbage collection system metadata.
+    # TYPE go_memstats_gc_sys_bytes gauge
+    go_memstats_gc_sys_bytes 4.184192e+06
+    # HELP go_memstats_heap_alloc_bytes Number of heap bytes allocated and still in use.
+    # TYPE go_memstats_heap_alloc_bytes gauge
+    go_memstats_heap_alloc_bytes 1.399848e+06 
+    ...
+   
+    далее сделал файлик /etc/systemd/system/node_exporter.service с таким содержанием:
+    
+    Description=Node Exporter
+
+    [Service]
+    ExecStart=/home/vagrant/node_exporter-1.3.1.linux-amd64/node_exporter
+    EnvironmentFile=/etc/default/node_exporter
+    
+    [Install]
+    WantedBy=default.target
+    
+    и файлик /etc/default/node_exporter с содержанием:
+   
+    MYVAR=myvalue
+   
+    включил сервис
+   
+    vagrant@vagrant:~$ systemctl enable node_exporter
+    ==== AUTHENTICATING FOR org.freedesktop.systemd1.manage-unit-files ===
+    Authentication is required to manage system service or unit files.
+    Authenticating as: vagrant
+    Password:
+    ==== AUTHENTICATION COMPLETE ===
+    ==== AUTHENTICATING FOR org.freedesktop.systemd1.reload-daemon ===
+    Authentication is required to reload the systemd state.
+    Authenticating as: vagrant
+    Password:
+    ==== AUTHENTICATION COMPLETE ===
+   
+    остановил сервис 
+   
+    vagrant@vagrant:~$ systemctl stop node_exporter
+    ==== AUTHENTICATING FOR org.freedesktop.systemd1.manage-units ===
+    Authentication is required to stop 'node_exporter.service'.
+    Authenticating as: vagrant
+    Password:
+    ==== AUTHENTICATION COMPLETE ===
+   
+    vagrant@vagrant:~$ ps -e | grep node_exporter
+    vagrant@vagrant:~$
+   
+    запустил севрис 
+   
+    vagrant@vagrant:~$ systemctl start node_exporter
+    ==== AUTHENTICATING FOR org.freedesktop.systemd1.manage-units ===
+    Authentication is required to start 'node_exporter.service'.
+    Authenticating as: vagrant
+    Password:
+    ==== AUTHENTICATION COMPLETE ===
+    vagrant@vagrant:~$ ps -e | grep node_exporter
+    1148 ?        00:00:00 node_exporter
+   
+    после перезапуска
+   
+    vagrant@vagrant:~$ ps -e | grep node_exporter
+    638 ?        00:00:00 node_exporter
+    vagrant@vagrant:~$ sudo cat /proc/638/environ
+    LANG=en_US.UTF-8PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/binINVOCATION_ID=55dea6224e59428d88a04ef3bb846d9fJOURNAL_STREAM=9:20888MYVAR=myvalue
+    
+    ##MYVAR=myvalue
+   ```
+
+1. Ознакомьтесь с опциями node_exporter и выводом `/metrics` по-умолчанию. Приведите несколько опций, которые вы бы выбрали для базового мониторинга хоста по CPU, памяти, диску и сети.
+
+    ```bash
+    node_cpu_seconds_total{cpu="0",mode="idle"}
+    node_cpu_seconds_total{cpu="0",mode="system"}
+    node_cpu_seconds_total{cpu="0",mode="user"}
+    process_cpu_seconds_total
+    node_memory_MemAvailable_bytes
+    node_memory_MemFree_bytes
+    node_disk_io_time_seconds_total{device="sda"}
+    node_disk_read_bytes_total{device="sda"}
+    node_disk_read_time_seconds_total{device="sda"}
+    node_disk_write_time_seconds_total{device="sda"}
+    node_network_receive_bytes_total{device="eth0"}
+    node_network_transmit_bytes_total{device="eth0"}
+   ```   
+
+1. Установите в свою виртуальную машину [Netdata](https://github.com/netdata/netdata). Воспользуйтесь [готовыми пакетами](https://packagecloud.io/netdata/netdata/install) для установки (`sudo apt install -y netdata`). После успешной установки:
+    * в конфигурационном файле `/etc/netdata/netdata.conf` в секции [web] замените значение с localhost на `bind to = 0.0.0.0`,
+    * добавьте в Vagrantfile проброс порта Netdata на свой локальный компьютер и сделайте `vagrant reload`:
+
+    ```bash
+    config.vm.network "forwarded_port", guest: 19999, host: 19999
+    ```
+
+   После успешной перезагрузки в браузере *на своем ПК* (не в виртуальной машине) вы должны суметь зайти на `localhost:19999`. Ознакомьтесь с метриками, которые по умолчанию собираются Netdata и с комментариями, которые даны к этим метрикам.
+      
+   ```bash
+   Поставил, ознакомился
+   ```
+   ![netstat](./images/netstat.jpg)
+  
+1. Можно ли по выводу `dmesg` понять, осознает ли ОС, что загружена не на настоящем оборудовании, а на системе виртуализации?
+1. Как настроен sysctl `fs.nr_open` на системе по-умолчанию? Узнайте, что означает этот параметр. Какой другой существующий лимит не позволит достичь такого числа (`ulimit --help`)?
+1. Запустите любой долгоживущий процесс (не `ls`, который отработает мгновенно, а, например, `sleep 1h`) в отдельном неймспейсе процессов; покажите, что ваш процесс работает под PID 1 через `nsenter`. Для простоты работайте в данном задании под root (`sudo -i`). Под обычным пользователем требуются дополнительные опции (`--map-root-user`) и т.д.
+1. Найдите информацию о том, что такое `:(){ :|:& };:`. Запустите эту команду в своей виртуальной машине Vagrant с Ubuntu 20.04 (**это важно, поведение в других ОС не проверялось**). Некоторое время все будет "плохо", после чего (минуты) – ОС должна стабилизироваться. Вызов `dmesg` расскажет, какой механизм помог автоматической стабилизации. Как настроен этот механизм по-умолчанию, и как изменить число процессов, которое можно создать в сессии?
