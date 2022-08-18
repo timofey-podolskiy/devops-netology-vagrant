@@ -431,6 +431,57 @@
    ![netstat](./images/netstat.jpg)
   
 1. Можно ли по выводу `dmesg` понять, осознает ли ОС, что загружена не на настоящем оборудовании, а на системе виртуализации?
+   ```bash
+   Видимо да =)
+   
+   vagrant@vagrant:~$ dmesg | grep virtual
+    [    0.005741] CPU MTRRs all blank - virtualized system.
+    [    0.044705] Booting paravirtualized kernel on KVM
+    [    0.616390] Performance Events: PMU not available due to virtualization, using software events only.
+    [   14.836544] systemd[1]: Detected virtualization oracle.
+   ```
 1. Как настроен sysctl `fs.nr_open` на системе по-умолчанию? Узнайте, что означает этот параметр. Какой другой существующий лимит не позволит достичь такого числа (`ulimit --help`)?
+
+    ```bash
+    vagrant@vagrant:~$ sysctl fs.nr_open
+    fs.nr_open = 1048576 
+   
+    максимальное количество файловых дескрипторов
+    
+    vagrant@vagrant:~$ ulimit -Hn
+    1048576
+    -H        use the `hard' resource limit
+    -n        the maximum number of open file descriptors
+    
+   ```   
+
 1. Запустите любой долгоживущий процесс (не `ls`, который отработает мгновенно, а, например, `sleep 1h`) в отдельном неймспейсе процессов; покажите, что ваш процесс работает под PID 1 через `nsenter`. Для простоты работайте в данном задании под root (`sudo -i`). Под обычным пользователем требуются дополнительные опции (`--map-root-user`) и т.д.
+  
+    ```bash
+    ##pts/1
+    root@vagrant:~# unshare -f --pid --mount-proc sleep 1h
+   
+    ##pts/0
+    root@vagrant:~# ps -e | grep sleep
+       1356 pts/1    00:00:00 sleep
+    root@vagrant:~# nsenter --target 1356 --mount --uts --ipc --net --pid ps aux
+    USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+    root           1  0.0  0.0   5476   516 pts/1    S+   17:57   0:00 sleep 1h
+    root           2  0.0  0.3   8888  3424 pts/0    R+   17:58   0:00 ps aux 
+   ```
+ 
 1. Найдите информацию о том, что такое `:(){ :|:& };:`. Запустите эту команду в своей виртуальной машине Vagrant с Ubuntu 20.04 (**это важно, поведение в других ОС не проверялось**). Некоторое время все будет "плохо", после чего (минуты) – ОС должна стабилизироваться. Вызов `dmesg` расскажет, какой механизм помог автоматической стабилизации. Как настроен этот механизм по-умолчанию, и как изменить число процессов, которое можно создать в сессии?
+
+    ```bash
+    Некая форк-бомба. Бесконечная рекурсивная функция. Часто использутеся для проверки ограничений числа пользовательских процессов на сервере
+   
+    root@vagrant:~# dmesg | grep fork
+    [  295.559245] cgroup: fork rejected by pids controller in /user.slice/user-1000.slice/session-1.scope
+   
+    root@vagrant:~# ulimit -u
+    3554
+    
+    root@vagrant:~# ulimit -u 10
+    root@vagrant:~# ulimit -u
+    10
+   ```
