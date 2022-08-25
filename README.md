@@ -341,7 +341,7 @@
     Description=Node Exporter
 
     [Service]
-    ExecStart=/home/vagrant/node_exporter-1.3.1.linux-amd64/node_exporter
+    ExecStart=/home/vagrant/node_exporter-1.3.1.linux-amd64/node_exporter $PARAMS
     EnvironmentFile=/etc/default/node_exporter
     
     [Install]
@@ -349,7 +349,7 @@
     
     и файлик /etc/default/node_exporter с содержанием:
    
-    MYVAR=myvalue
+    PARAMS=--web.listen-address=":9101"
    
     включил сервис
    
@@ -393,9 +393,11 @@
     vagrant@vagrant:~$ ps -e | grep node_exporter
     638 ?        00:00:00 node_exporter
     vagrant@vagrant:~$ sudo cat /proc/638/environ
-    LANG=en_US.UTF-8PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/binINVOCATION_ID=55dea6224e59428d88a04ef3bb846d9fJOURNAL_STREAM=9:20888MYVAR=myvalue
+    LANG=en_US.UTF-8PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/binINVOCATION_ID=55dea6224e59428d88a04ef3bb846d9fJOURNAL_STREAM=9:20888PARAMS=--web.listen-address=":9101"
     
-    ##MYVAR=myvalue
+    ##PARAMS=--web.listen-address=":9101"
+    
+    параметры запуска выставляются в файлике /etc/default/node_exporter, в данном случае сервис слушает порт 9101
    ```
 
 1. Ознакомьтесь с опциями node_exporter и выводом `/metrics` по-умолчанию. Приведите несколько опций, которые вы бы выбрали для базового мониторинга хоста по CPU, памяти, диску и сети.
